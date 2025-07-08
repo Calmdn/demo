@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.SearchLogMapper">
+
+    <!-- 插入搜索记录 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.SearchLog">
+        INSERT INTO search_log(user_id, keyword, search_type, result_count, ip_address, user_agent)
+        VALUES(#{userId}, #{keyword}, #{searchType}, #{resultCount}, #{ipAddress}, #{userAgent})
+    </insert>
+
+    <!-- 获取热门搜索词 -->
+    <select id="getHotKeywords" resultType="map">
+        SELECT keyword, COUNT(*) as count
+        FROM search_log
+        WHERE create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+          AND keyword IS NOT NULL AND keyword != ''
+        GROUP BY keyword
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取用户搜索历史 -->
+    <select id="getUserSearchHistory" resultType="com.example.demo.pojo.SearchLog">
+        SELECT * FROM search_log
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 搜索关键词建议 -->
+    <select id="getKeywordSuggestions" resultType="string">
+        SELECT DISTINCT keyword
+        FROM search_log
+        WHERE keyword LIKE CONCAT('%', #{keyword}, '%')
+          AND result_count > 0
+        GROUP BY keyword
+        ORDER BY COUNT(*) DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 统计指定日期搜索次数 -->
+    <select id="countSearchesByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM search_log
+        WHERE DATE(create_time) = #{date}
+    </select>
+    <!-- 统计用户月度搜索次数 -->
+    <select id="countUserSearchesByMonth" resultType="int">
+        SELECT COUNT(*)
+        FROM search_log
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+    </select>
+</mapper>

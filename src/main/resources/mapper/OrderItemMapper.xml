@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.OrderItemMapper">
+
+    <!-- 批量插入订单项 -->
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO order_items(order_id, artwork_id, artwork_title, artwork_image_url, seller_id, seller_name, price, original_price)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.orderId}, #{item.artworkId}, #{item.artworkTitle}, #{item.artworkImageUrl},
+            #{item.sellerId}, #{item.sellerName}, #{item.price}, #{item.originalPrice})
+        </foreach>
+    </insert>
+
+    <!-- 根据订单ID查询订单项 -->
+    <select id="selectByOrderId" parameterType="int" resultType="com.example.demo.pojo.OrderItem">
+        SELECT * FROM order_items WHERE order_id = #{orderId}
+    </select>
+
+    <!-- 查询卖家的销售记录 -->
+    <select id="selectBySellerId" resultType="com.example.demo.pojo.OrderItem">
+        SELECT oi.*, o.order_no, o.status as orderStatus, o.create_time as orderCreateTime
+        FROM order_items oi
+        LEFT JOIN orders o ON oi.order_id = o.id
+        WHERE oi.seller_id = #{sellerId}
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        ORDER BY oi.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+</mapper>

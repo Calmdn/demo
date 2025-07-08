@@ -1,0 +1,70 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/demo
+    username: root
+    password: root
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 0
+          max-wait: -1ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10分钟缓存
+      cache-null-values: false
+      key-prefix: "starcamp:"
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 5
+        max-concurrency: 10
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000
+    template:
+      retry:
+        enabled: true
+        max-attempts: 3
+
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.demo.pojo
+  configuration:
+    map-underscore-to-camel-case: true
+
+file:
+  upload:
+    path: /uploads/artwork/
+    domain: http://localhost:8080
+
+# JWT配置
+jwt:
+  secret: demosecretkeydemosecretkeydemosecretkeydemosecretkeydemosecretkeydemosecretkeydemosecretkey
+  expiration: 7200000  # 2小时

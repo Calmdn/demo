@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.UserStatisticsMapper">
+
+    <!-- 插入用户统计 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.UserStatistics">
+        INSERT INTO user_statistics(
+            user_id, stat_month, artworks_uploaded, artworks_viewed, artworks_favorited,
+            comments_made, searches_made, login_days, total_revenue
+        ) VALUES(
+                    #{userId}, #{statMonth}, #{artworksUploaded}, #{artworksViewed}, #{artworksFavorited},
+                    #{commentsMade}, #{searchesMade}, #{loginDays}, #{totalRevenue}
+                ) ON DUPLICATE KEY UPDATE
+                                       artworks_uploaded = VALUES(artworks_uploaded),
+                                       artworks_viewed = VALUES(artworks_viewed),
+                                       artworks_favorited = VALUES(artworks_favorited),
+                                       comments_made = VALUES(comments_made),
+                                       searches_made = VALUES(searches_made),
+                                       login_days = VALUES(login_days),
+                                       total_revenue = VALUES(total_revenue),
+                                       update_time = NOW()
+    </insert>
+
+    <!-- 获取用户活跃度排行 -->
+    <select id="getUserActivityRanking" resultType="map">
+        SELECT
+            us.user_id,
+            u.username,
+            SUM(us.artworks_uploaded) as totalArtworks,
+            SUM(us.artworks_viewed) as totalViewed,
+            SUM(us.artworks_favorited) as totalFavorited,
+            SUM(us.comments_made) as totalComments,
+            SUM(us.login_days) as totalLoginDays,
+            SUM(us.total_revenue) as totalRevenue
+        FROM user_statistics us
+                 LEFT JOIN user u ON us.user_id = u.id
+        WHERE us.stat_month BETWEEN #{startMonth} AND #{endMonth}
+        GROUP BY us.user_id, u.username
+        ORDER BY ${sortBy} DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取用户详细统计 -->
+    <select id="getUserDetailStatistics" resultType="com.example.demo.pojo.UserStatistics">
+        SELECT us.*, u.username
+        FROM user_statistics us
+                 LEFT JOIN user u ON us.user_id = u.id
+        WHERE us.user_id = #{userId}
+          AND us.stat_month BETWEEN #{startMonth} AND #{endMonth}
+        ORDER BY us.stat_month DESC
+    </select>
+
+    <!-- 获取新用户增长趋势 -->
+    <select id="getNewUserTrends" resultType="map">
+        SELECT
+            DATE_FORMAT(create_time, '%Y-%m-%d') as date,
+            COUNT(*) as newUsers
+        FROM user
+        WHERE create_time BETWEEN #{startDate} AND #{endDate}
+        GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
+
+</mapper>

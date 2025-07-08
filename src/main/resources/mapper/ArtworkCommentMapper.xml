@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkCommentMapper">
+
+    <!-- 插入评论 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.ArtworkComment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO artwork_comment(artwork_id, user_id, parent_id, content, rating, status)
+        VALUES(#{artworkId}, #{userId}, #{parentId}, #{content}, #{rating}, #{status})
+    </insert>
+
+    <!-- 查询作品的顶级评论列表 -->
+    <select id="selectTopLevelComments" resultType="com.example.demo.pojo.ArtworkComment">
+        SELECT c.*, u.username
+        FROM artwork_comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.artwork_id = #{artworkId}
+          AND c.parent_id IS NULL
+          AND c.status = 1
+        ORDER BY c.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询评论的回复列表 -->
+    <select id="selectRepliesByParentId" resultType="com.example.demo.pojo.ArtworkComment">
+        SELECT c.*, u.username,
+               pc.user_id as parentUserId, pu.username as parentUsername
+        FROM artwork_comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+                 LEFT JOIN artwork_comment pc ON c.parent_id = pc.id
+                 LEFT JOIN user pu ON pc.user_id = pu.id
+        WHERE c.parent_id = #{parentId}
+          AND c.status = 1
+        ORDER BY c.create_time ASC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 根据ID查询评论 -->
+    <select id="selectById" parameterType="int" resultType="com.example.demo.pojo.ArtworkComment">
+        SELECT c.*, u.username
+        FROM artwork_comment c
+                 LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.id = #{id}
+    </select>
+
+    <!-- 更新回复数量 -->
+    <update id="updateReplyCount">
+        UPDATE artwork_comment
+        SET reply_count = reply_count + #{increment}
+        WHERE id = #{commentId}
+    </update>
+
+    <!-- 更新点赞数量 -->
+    <update id="updateLikeCount">
+        UPDATE artwork_comment
+        SET like_count = like_count + #{increment}
+        WHERE id = #{commentId}
+    </update>
+
+    <!-- 删除评论（软删除） -->
+    <update id="deleteById">
+        UPDATE artwork_comment
+        SET status = 0
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <!-- 获取作品评论统计 -->
+    <select id="getCommentStats" resultType="map">
+        SELECT
+            COUNT(*) as commentCount,
+            COALESCE(AVG(rating), 0) as avgRating,
+            COUNT(CASE WHEN rating IS NOT NULL THEN 1 END) as ratingCount
+        FROM artwork_comment
+        WHERE artwork_id = #{artworkId}
+          AND parent_id IS NULL
+          AND status = 1
+    </select>
+
+    <!-- 查询用户的评论列表 -->
+    <select id="selectByUserId" resultType="com.example.demo.pojo.ArtworkComment">
+        SELECT c.*, a.title as artworkTitle, a.thumbnail_url as artworkImage
+        FROM artwork_comment c
+                 LEFT JOIN artwork a ON c.artwork_id = a.id
+        WHERE c.user_id = #{userId}
+          AND c.status = 1
+        ORDER BY c.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+</mapper>

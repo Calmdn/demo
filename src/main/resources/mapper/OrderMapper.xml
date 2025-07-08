@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.OrderMapper">
+
+    <!-- 插入订单 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.Order" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders(order_no, user_id, total_amount, original_amount, discount_amount, status, payment_method, remark)
+        VALUES(#{orderNo}, #{userId}, #{totalAmount}, #{originalAmount}, #{discountAmount}, #{status}, #{paymentMethod}, #{remark})
+    </insert>
+
+    <!-- 根据ID查询订单详情 -->
+    <select id="selectById" parameterType="int" resultType="com.example.demo.pojo.Order">
+        SELECT o.*, u.username as buyerName
+        FROM orders o
+                 LEFT JOIN user u ON o.user_id = u.id
+        WHERE o.id = #{id}
+    </select>
+
+    <!-- 根据订单号查询 -->
+    <select id="selectByOrderNo" parameterType="string" resultType="com.example.demo.pojo.Order">
+        SELECT o.*, u.username as buyerName
+        FROM orders o
+                 LEFT JOIN user u ON o.user_id = u.id
+        WHERE o.order_no = #{orderNo}
+    </select>
+
+    <!-- 查询用户订单列表 -->
+    <select id="selectByUserId" resultType="com.example.demo.pojo.Order">
+        SELECT o.*, u.username as buyerName
+        FROM orders o
+        LEFT JOIN user u ON o.user_id = u.id
+        WHERE o.user_id = #{userId}
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 更新订单状态 -->
+    <update id="updateStatus">
+        UPDATE orders
+        SET status = #{status}
+        <if test="status == 2">
+            , payment_time = NOW()
+        </if>
+        WHERE id = #{orderId}
+    </update>
+    <!-- 更新订单 -->
+    <update id="update" parameterType="com.example.demo.pojo.Order">
+        UPDATE orders
+        <set>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="originalAmount != null">original_amount = #{originalAmount},</if>
+            <if test="discountAmount != null">discount_amount = #{discountAmount},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="paymentTime != null">payment_time = #{paymentTime},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 计算指定日期的收入 -->
+    <select id="calculateDailyRevenue" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM orders
+        WHERE DATE(payment_time) = #{date}
+        AND status IN (2, 3)  <!-- 已支付和已完成的订单 -->
+    </select>
+
+    <!-- 计算指定日期范围的收入 -->
+    <select id="calculateRevenueByDateRange" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM orders
+        WHERE DATE(payment_time) BETWEEN #{startDate} AND #{endDate}
+          AND status IN (2, 3)
+    </select>
+
+    <!-- 计算用户指定月份的收入 -->
+    <select id="calculateUserRevenueByMonth" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(o.total_amount), 0)
+        FROM orders o
+                 JOIN order_items oi ON o.id = oi.order_id
+                 JOIN artwork a ON oi.artwork_id = a.id
+        WHERE a.user_id = #{userId}
+          AND DATE_FORMAT(o.payment_time, '%Y-%m') = #{statMonth}
+          AND o.status IN (2, 3)
+    </select>
+
+    <!-- 获取收入趋势数据 -->
+    <select id="getRevenueTrends" resultType="map">
+        SELECT
+            DATE(payment_time) as date,
+            SUM(total_amount) as revenue,
+            COUNT(*) as orderCount
+        FROM orders
+        WHERE DATE(payment_time) BETWEEN #{startDate} AND #{endDate}
+          AND status IN (2, 3)
+        GROUP BY DATE(payment_time)
+        ORDER BY date ASC
+    </select>
+
+    <!-- 统计指定日期的订单数量 -->
+    <select id="countOrdersByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE DATE(create_time) = #{date}
+    </select>
+
+    <!-- 获取最受欢迎的作者统计 -->
+    <select id="getTopSellingArtworks" resultType="map">
+        SELECT
+            oi.seller_id as authorId,
+            oi.seller_name as authorName,
+            COUNT(oi.artwork_id) as soldCount,           -- 售出作品数量
+            SUM(oi.price) as totalRevenue,               -- 总收入
+            AVG(oi.price) as avgPrice,                   -- 平均售价
+            MAX(oi.price) as maxPrice,                   -- 最高售价
+            MIN(oi.price) as minPrice                    -- 最低售价
+        FROM order_items oi
+                 JOIN orders o ON oi.order_id = o.id
+        WHERE DATE(o.payment_time) BETWEEN #{startDate} AND #{endDate}
+          AND o.status IN (2, 3)                        -- 已支付和已完成的订单
+        GROUP BY oi.seller_id, oi.seller_name
+        ORDER BY soldCount DESC, totalRevenue DESC      -- 按销量排序，销量相同按收入排序
+        LIMIT #{limit}
+    </select>
+    <!-- -->
+    <select id="selectTimeoutOrders" resultType="com.example.demo.pojo.Order">
+        SELECT
+            id,
+            order_no as orderNo,
+            user_id as userId,
+            status,
+            payment_method as paymentMethod,
+            total_amount as totalAmount,
+            original_amount as originalAmount,
+            discount_amount as discountAmount,
+            remark,
+            create_time as createTime,
+            update_time as updateTime
+        FROM orders
+        WHERE status = 1
+          AND create_time &lt; DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+        ORDER BY create_time ASC
+        LIMIT 100
+    </select>
+</mapper>

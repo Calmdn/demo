@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkStatisticsMapper">
+
+    <!-- 插入作品统计 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.ArtworkStatistics">
+        INSERT INTO artwork_statistics(
+            artwork_id, stat_date, view_count, favorite_count, comment_count, share_count
+        ) VALUES(
+                    #{artworkId}, #{statDate}, #{viewCount}, #{favoriteCount}, #{commentCount}, #{shareCount}
+                ) ON DUPLICATE KEY UPDATE
+                                       view_count = view_count + VALUES(view_count),
+                                       favorite_count = favorite_count + VALUES(favorite_count),
+                                       comment_count = comment_count + VALUES(comment_count),
+                                       share_count = share_count + VALUES(share_count)
+    </insert>
+
+    <!-- 获取热门作品排行 -->
+    <select id="getPopularArtworksRanking" resultType="map">
+        SELECT
+            ast.artwork_id,
+            a.title as artworkTitle,
+            a.thumbnail_url as imageUrl,
+            u.username as authorName,
+            SUM(ast.view_count) as totalViews,
+            SUM(ast.favorite_count) as totalFavorites,
+            SUM(ast.comment_count) as totalComments,
+            a.price,
+            a.upload_time
+        FROM artwork_statistics ast
+                 LEFT JOIN artwork a ON ast.artwork_id = a.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE ast.stat_date BETWEEN #{startDate} AND #{endDate}
+          AND a.status = 1
+        GROUP BY ast.artwork_id, a.title, a.thumbnail_url, u.username, a.price, a.upload_time
+        ORDER BY ${sortBy} DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取作品详细统计 -->
+    <select id="getArtworkDetailStatistics" resultType="com.example.demo.pojo.ArtworkStatistics">
+        SELECT ast.*, a.title as artworkTitle, u.username as authorName
+        FROM artwork_statistics ast
+                 LEFT JOIN artwork a ON ast.artwork_id = a.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE ast.artwork_id = #{artworkId}
+          AND ast.stat_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY ast.stat_date DESC
+    </select>
+
+    <!-- 获取分类作品统计 -->
+    <select id="getCategoryStatistics" resultType="map">
+        SELECT
+            ac.id as categoryId,
+            ac.name as categoryName,
+            COUNT(DISTINCT a.id) as artworkCount,
+            SUM(ast.view_count) as totalViews,
+            SUM(ast.favorite_count) as totalFavorites,
+            SUM(ast.comment_count) as totalComments,
+            AVG(a.price) as avgPrice
+        FROM artwork_statistics ast
+                 LEFT JOIN artwork a ON ast.artwork_id = a.id
+                 LEFT JOIN artwork_category ac ON a.category_id = ac.id
+        WHERE ast.stat_date BETWEEN #{startDate} AND #{endDate}
+          AND a.status = 1
+        GROUP BY ac.id, ac.name
+        ORDER BY totalViews DESC
+    </select>
+
+</mapper>

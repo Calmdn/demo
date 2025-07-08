@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkDiscountMapper">
+
+    <!-- 插入折扣活动 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.ArtworkDiscount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO artwork_discount(artwork_id, discount_type, discount_value, min_price, start_time, end_time, description, creator_id, status)
+        VALUES(#{artworkId}, #{discountType}, #{discountValue}, #{minPrice}, #{startTime}, #{endTime}, #{description}, #{creatorId}, #{status})
+    </insert>
+
+    <!-- 查询作品的有效折扣 -->
+    <select id="selectActiveDiscountByArtworkId" resultType="com.example.demo.pojo.ArtworkDiscount">
+        SELECT * FROM artwork_discount
+        WHERE artwork_id = #{artworkId}
+          AND status = 1
+          AND start_time &lt;= NOW()
+          AND end_time &gt;= NOW()
+        ORDER BY discount_value DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询作品的所有折扣历史 -->
+    <select id="selectByArtworkId" resultType="com.example.demo.pojo.ArtworkDiscount">
+        SELECT d.*, u.username as creatorName
+        FROM artwork_discount d
+                 LEFT JOIN user u ON d.creator_id = u.id
+        WHERE d.artwork_id = #{artworkId}
+        ORDER BY d.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询用户创建的折扣活动 -->
+    <select id="selectByCreatorId" resultType="com.example.demo.pojo.ArtworkDiscount">
+        SELECT d.*, a.title as artworkTitle
+        FROM artwork_discount d
+        LEFT JOIN artwork a ON d.artwork_id = a.id
+        WHERE d.creator_id = #{creatorId}
+        <if test="status != null">
+            AND d.status = #{status}
+        </if>
+        ORDER BY d.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 更新折扣状态 -->
+    <update id="updateStatus">
+        UPDATE artwork_discount
+        SET status = #{status}
+        WHERE id = #{id} AND creator_id = #{creatorId}
+    </update>
+
+    <!-- 批量查询多个作品的有效折扣 -->
+    <select id="selectActiveDiscountsByArtworkIds" resultType="com.example.demo.pojo.ArtworkDiscount">
+        SELECT * FROM artwork_discount
+        WHERE artwork_id IN
+        <foreach collection="artworkIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND status = 1
+        AND start_time &lt;= NOW()
+        AND end_time &gt;= NOW()
+    </select>
+
+</mapper>

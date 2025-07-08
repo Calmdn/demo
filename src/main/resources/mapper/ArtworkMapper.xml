@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="ArtworkResultMap" type="com.example.demo.pojo.Artwork">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="categoryName" column="categoryName"/>
+        <result property="userId" column="user_id"/>
+        <result property="authorName" column="authorName"/>
+        <result property="price" column="price"/>
+        <result property="originalPrice" column="original_price"/>
+        <result property="tags" column="tags"/>
+        <result property="status" column="status"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="uploadTime" column="upload_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- 发布作品 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.Artwork" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO artwork(
+            title,
+            description,
+            image_url,
+            thumbnail_url,
+            category_id,
+            user_id,
+            price,
+            original_price,
+            tags,
+            status
+        ) VALUES(
+                    #{title},
+                    #{description},
+                    #{imageUrl},
+                    #{thumbnailUrl},
+                    #{categoryId},
+                    #{userId},
+                    #{price},
+                    #{originalPrice},
+                    #{tags},
+                    #{status}
+                )
+    </insert>
+
+    <!-- 分页查询作品列表（带关联查询） -->
+    <select id="selectPage" resultMap="ArtworkResultMap">
+        SELECT
+            a.*,
+            c.name as categoryName,
+            u.username as authorName
+        FROM artwork a
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.status = 1
+        ORDER BY a.upload_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 条件查询作品列表 -->
+    <select id="selectByCondition" resultMap="ArtworkResultMap">
+        SELECT
+        a.*,
+        c.name as categoryName,
+        u.username as authorName
+        FROM artwork a
+        LEFT JOIN artwork_category c ON a.category_id = c.id
+        LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.status = 1
+        <if test="categoryId != null">
+            AND a.category_id = #{categoryId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (a.title LIKE CONCAT('%', #{keyword}, '%') OR a.tags LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="minPrice != null">
+            AND a.price >= #{minPrice}
+        </if>
+        <if test="maxPrice != null">
+            AND a.price &lt;= #{maxPrice}
+        </if>
+        ORDER BY
+        <choose>
+            <when test="orderBy == 'price_asc'">a.price ASC</when>
+            <when test="orderBy == 'price_desc'">a.price DESC</when>
+            <when test="orderBy == 'view_count'">a.view_count DESC</when>
+            <when test="orderBy == 'like_count'">a.like_count DESC</when>
+            <otherwise>a.upload_time DESC</otherwise>
+        </choose>
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 获取作品详情 -->
+    <select id="selectById" resultMap="ArtworkResultMap">
+        SELECT
+            a.*,
+            c.name as categoryName,
+            u.username as authorName
+        FROM artwork a
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.id = #{id}
+    </select>
+
+    <!-- 增加浏览次数 -->
+    <update id="incrementViewCount">
+        UPDATE artwork
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 获取用户的作品列表 -->
+    <select id="selectByUserId" resultMap="ArtworkResultMap">
+        SELECT
+            a.*,
+            c.name as categoryName
+        FROM artwork a
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+        WHERE a.user_id = #{userId}
+        ORDER BY a.upload_time DESC
+    </select>
+
+    <!-- 更新价格 -->
+    <update id="updatePrice">
+        UPDATE artwork SET
+                           price = #{price},
+                           update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 搜索作品 -->
+    <select id="searchArtworks" parameterType="map" resultType="com.example.demo.pojo.Artwork">
+        SELECT a.*, c.name as categoryName, u.username as authorName
+        FROM artwork a
+        LEFT JOIN artwork_category c ON a.category_id = c.id
+        LEFT JOIN user u ON a.user_id = u.id
+        <where>
+            a.status = 1
+            <if test="keyword != null">
+                AND (a.title LIKE #{keyword} OR a.description LIKE #{keyword} OR a.tags LIKE #{keyword})
+            </if>
+            <if test="categoryId != null">
+                AND a.category_id = #{categoryId}
+            </if>
+            <if test="tags != null and tags.size() > 0">
+                AND (
+                <foreach collection="tags" item="tag" separator=" OR ">
+                    a.tags LIKE CONCAT('%', #{tag}, '%')
+                </foreach>
+                )
+            </if>
+            <if test="minPrice != null">
+                AND a.price >= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                AND a.price &lt;= #{maxPrice}
+            </if>
+        </where>
+        <if test="orderBy != null">
+            ORDER BY ${orderBy}
+        </if>
+        <if test="orderBy == null">
+            ORDER BY a.upload_time DESC
+        </if>
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计搜索结果数量 -->
+    <select id="countSearchResults" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork a
+        <where>
+            a.status = 1
+            <if test="keyword != null">
+                AND (a.title LIKE #{keyword} OR a.description LIKE #{keyword} OR a.tags LIKE #{keyword})
+            </if>
+            <if test="categoryId != null">
+                AND a.category_id = #{categoryId}
+            </if>
+            <if test="tags != null and tags.size() > 0">
+                AND (
+                <foreach collection="tags" item="tag" separator=" OR ">
+                    a.tags LIKE CONCAT('%', #{tag}, '%')
+                </foreach>
+                )
+            </if>
+            <if test="minPrice != null">
+                AND a.price >= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                AND a.price &lt;= #{maxPrice}
+            </if>
+        </where>
+    </select>
+
+    <!-- 获取最新作品 -->
+    <select id="selectLatestArtworks" resultType="com.example.demo.pojo.Artwork">
+        SELECT a.*, c.name as categoryName, u.username as authorName
+        FROM artwork a
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.status = 1
+        ORDER BY a.upload_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据ID列表查询作品 -->
+    <select id="selectByIds" resultType="com.example.demo.pojo.Artwork">
+        SELECT a.*, c.name as categoryName, u.username as authorName
+        FROM artwork a
+        LEFT JOIN artwork_category c ON a.category_id = c.id
+        LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND a.status = 1
+        ORDER BY a.upload_time DESC
+    </select>
+
+    <!-- 查询相似作品 -->
+    <select id="selectSimilarArtworks" parameterType="map" resultType="com.example.demo.pojo.Artwork">
+        SELECT a.*, c.name as categoryName, u.username as authorName
+        FROM artwork a
+        LEFT JOIN artwork_category c ON a.category_id = c.id
+        LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.status = 1
+        <if test="categoryId != null">
+            AND a.category_id = #{categoryId}
+        </if>
+        <if test="excludeId != null">
+            AND a.id != #{excludeId}
+        </if>
+        ORDER BY a.view_count DESC, a.like_count DESC, a.upload_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 按分类查询热门作品 -->
+    <select id="selectByCategoryOrderByPopular" resultType="com.example.demo.pojo.Artwork">
+        SELECT a.*, c.name as categoryName, u.username as authorName
+        FROM artwork a
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+                 LEFT JOIN user u ON a.user_id = u.id
+        WHERE a.category_id = #{categoryId}
+          AND a.status = 1
+        ORDER BY a.view_count DESC, a.like_count DESC, a.upload_time DESC
+        LIMIT #{limit}
+    </select>
+    <!-- 统计指定日期新增作品数 -->
+    <select id="countNewArtworksByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork
+        WHERE DATE(upload_time) = #{date}
+          AND status = 1
+    </select>
+    <!-- 统计用户月度上传作品数 -->
+    <select id="countUserArtworksByMonth" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(upload_time, '%Y-%m') = #{statMonth}
+          AND status = 1
+    </select>
+
+    <!-- 标记作品为锁定状态 -->
+    <update id="markAsPreSold">
+        UPDATE artwork
+        SET status = 4,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{artworkId}
+          AND status = 1
+    </update>
+
+    <!-- 锁定作品进行购买（上架->锁定中） -->
+    <update id="lockArtworkForPurchase">
+        UPDATE artwork
+        SET status = 4,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{artworkId} AND status = 1
+    </update>
+
+    <!-- 回滚作品状态到上架（锁定中->上架） -->
+    <update id="rollbackArtworkStatus">
+        UPDATE artwork
+        SET status = 1,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{artworkId} AND status = 4
+    </update>
+
+    <!-- 回滚到上架状态（兼容方法） -->
+    <update id="rollbackToAvailable">
+        UPDATE artwork
+        SET status = 1,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{artworkId} AND (status = 4 OR status = 3)
+    </update>
+
+    <!-- 标记作品为已售出（锁定中->已售出，支付成功后调用） -->
+    <update id="markAsSold">
+        UPDATE artwork
+        SET status = 3,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{artworkId} AND status = 4
+    </update>
+
+</mapper>

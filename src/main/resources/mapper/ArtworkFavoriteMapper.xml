@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkFavoriteMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="ArtworkFavoriteResultMap" type="com.example.demo.pojo.ArtworkFavorite">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="artworkId" column="artwork_id"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <!-- 带作品信息的结果映射 -->
+    <resultMap id="ArtworkFavoriteWithInfoResultMap" type="com.example.demo.pojo.ArtworkFavorite">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="artworkId" column="artwork_id"/>
+        <result property="createTime" column="create_time"/>
+        <!-- 作品相关信息 -->
+        <result property="artworkTitle" column="artworkTitle"/>
+        <result property="artworkImageUrl" column="artworkImageUrl"/>
+        <result property="artworkThumbnailUrl" column="artworkThumbnailUrl"/>
+        <result property="artworkPrice" column="artworkPrice"/>
+        <result property="artworkStatus" column="artworkStatus"/>
+        <result property="authorName" column="authorName"/>
+        <result property="categoryName" column="categoryName"/>
+    </resultMap>
+
+    <!-- 添加收藏 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.ArtworkFavorite" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO artwork_favorite(
+            user_id,
+            artwork_id
+        ) VALUES(
+                    #{userId},
+                    #{artworkId}
+                )
+    </insert>
+
+    <!-- 取消收藏 -->
+    <delete id="delete">
+        DELETE FROM artwork_favorite
+        WHERE user_id = #{userId}
+          AND artwork_id = #{artworkId}
+    </delete>
+
+    <!-- 检查是否已收藏 -->
+    <select id="countByUserAndArtwork" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork_favorite
+        WHERE user_id = #{userId}
+          AND artwork_id = #{artworkId}
+    </select>
+
+    <!-- 获取用户收藏列表（带作品信息） -->
+    <select id="selectByUserId" resultMap="ArtworkFavoriteWithInfoResultMap">
+        SELECT
+            f.*,
+            a.title as artworkTitle,
+            a.image_url as artworkImageUrl,
+            a.thumbnail_url as artworkThumbnailUrl,
+            a.price as artworkPrice,
+            a.status as artworkStatus,
+            u.username as authorName,
+            c.name as categoryName
+        FROM artwork_favorite f
+                 LEFT JOIN artwork a ON f.artwork_id = a.id
+                 LEFT JOIN user u ON a.user_id = u.id
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+        WHERE f.user_id = #{userId}
+        ORDER BY f.create_time DESC
+    </select>
+
+    <!-- 批量删除收藏 -->
+    <delete id="batchDelete">
+        DELETE FROM artwork_favorite
+        WHERE user_id = #{userId}
+        AND artwork_id IN
+        <foreach collection="artworkIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 获取用户收藏数量 -->
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork_favorite
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 获取作品的收藏数量 -->
+    <select id="countByArtworkId" resultType="int">
+        SELECT COUNT(*)
+        FROM artwork_favorite
+        WHERE artwork_id = #{artworkId}
+    </select>
+
+</mapper>

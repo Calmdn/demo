@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.ArtworkPriceHistoryMapper">
+
+    <!-- 插入价格历史记录 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.ArtworkPriceHistory">
+        INSERT INTO artwork_price_history(artwork_id, old_price, new_price, change_reason, operator_id)
+        VALUES(#{artworkId}, #{oldPrice}, #{newPrice}, #{changeReason}, #{operatorId})
+    </insert>
+
+    <!-- 查询作品价格历史 -->
+    <select id="selectByArtworkId" resultType="com.example.demo.pojo.ArtworkPriceHistory">
+        SELECT h.*, u.username as operatorName
+        FROM artwork_price_history h
+                 LEFT JOIN user u ON h.operator_id = u.id
+        WHERE h.artwork_id = #{artworkId}
+        ORDER BY h.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 查询用户的价格变更记录 -->
+    <select id="selectByOperatorId" resultType="com.example.demo.pojo.ArtworkPriceHistory">
+        SELECT h.*, a.title as artworkTitle
+        FROM artwork_price_history h
+                 LEFT JOIN artwork a ON h.artwork_id = a.id
+        WHERE h.operator_id = #{operatorId}
+        ORDER BY h.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+</mapper>

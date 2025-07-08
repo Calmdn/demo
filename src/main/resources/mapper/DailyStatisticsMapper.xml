@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.DailyStatisticsMapper">
+
+    <!-- 插入每日统计 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.DailyStatistics">
+        INSERT INTO daily_statistics(
+            stat_date, new_users, active_users, new_artworks,
+            total_views, total_favorites, total_comments, total_searches, revenue
+        ) VALUES(
+                    #{statDate}, #{newUsers}, #{activeUsers}, #{newArtworks},
+                    #{totalViews}, #{totalFavorites}, #{totalComments}, #{totalSearches}, #{revenue}
+                ) ON DUPLICATE KEY UPDATE
+                                       new_users = VALUES(new_users),
+                                       active_users = VALUES(active_users),
+                                       new_artworks = VALUES(new_artworks),
+                                       total_views = VALUES(total_views),
+                                       total_favorites = VALUES(total_favorites),
+                                       total_comments = VALUES(total_comments),
+                                       total_searches = VALUES(total_searches),
+                                       revenue = VALUES(revenue),
+                                       update_time = NOW()
+    </insert>
+
+    <!-- 获取日期范围内的统计数据 -->
+    <select id="selectByDateRange" resultType="com.example.demo.pojo.DailyStatistics">
+        SELECT * FROM daily_statistics
+        WHERE stat_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY stat_date DESC
+    </select>
+
+    <!-- 获取平台概览数据 -->
+    <select id="getPlatformOverview" resultType="map">
+        SELECT
+            SUM(new_users) as totalNewUsers,
+            SUM(active_users) as totalActiveUsers,
+            SUM(new_artworks) as totalNewArtworks,
+            SUM(total_views) as totalViews,
+            SUM(total_favorites) as totalFavorites,
+            SUM(total_comments) as totalComments,
+            SUM(total_searches) as totalSearches,
+            SUM(revenue) as totalRevenue,
+            AVG(active_users) as avgDailyActiveUsers
+        FROM daily_statistics
+        WHERE stat_date BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <!-- 获取增长趋势数据 -->
+    <select id="getGrowthTrends" resultType="map">
+        SELECT
+            stat_date,
+            new_users,
+            active_users,
+            new_artworks,
+            total_views,
+            revenue,
+            -- 计算同比增长率
+            LAG(new_users, 7) OVER (ORDER BY stat_date) as new_users_last_week,
+            LAG(active_users, 7) OVER (ORDER BY stat_date) as active_users_last_week
+        FROM daily_statistics
+        WHERE stat_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY stat_date ASC
+    </select>
+
+    <!-- 获取最新统计数据 -->
+    <select id="getLatestStatistics" resultType="com.example.demo.pojo.DailyStatistics">
+        SELECT * FROM daily_statistics
+        ORDER BY stat_date DESC
+        LIMIT 1
+    </select>
+
+</mapper>

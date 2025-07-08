@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.UserBehaviorMapper">
+
+    <!-- 插入用户行为记录 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.UserBehavior">
+        INSERT INTO user_behavior(user_id, target_type, target_id, behavior_type, duration)
+        VALUES(#{userId}, #{targetType}, #{targetId}, #{behaviorType}, #{duration})
+    </insert>
+
+    <!-- 获取用户浏览历史 -->
+    <select id="getUserViewHistory" resultType="map">
+        SELECT ub.*, a.title, a.thumbnail_url as imageUrl
+        FROM user_behavior ub
+                 LEFT JOIN artwork a ON ub.target_id = a.id
+        WHERE ub.user_id = #{userId}
+          AND ub.target_type = 1
+          AND ub.behavior_type = 1
+        ORDER BY ub.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 获取热门作品（基于行为数据） -->
+    <select id="getPopularArtworks" resultType="map">
+        SELECT target_id as artworkId,
+               COUNT(*) as totalBehaviors,
+               SUM(CASE WHEN behavior_type = 1 THEN 1 ELSE 0 END) as viewCount,
+               SUM(CASE WHEN behavior_type = 2 THEN 1 ELSE 0 END) as favoriteCount,
+               SUM(CASE WHEN behavior_type = 4 THEN 1 ELSE 0 END) as purchaseCount
+        FROM user_behavior
+        WHERE target_type = 1
+          AND create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        GROUP BY target_id
+        ORDER BY totalBehaviors DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取用户兴趣偏好（基于分类） -->
+    <select id="getUserCategoryPreference" resultType="map">
+        SELECT a.category_id, c.name as categoryName, COUNT(*) as interestCount
+        FROM user_behavior ub
+                 LEFT JOIN artwork a ON ub.target_id = a.id
+                 LEFT JOIN artwork_category c ON a.category_id = c.id
+        WHERE ub.user_id = #{userId}
+          AND ub.target_type = 1
+          AND a.category_id IS NOT NULL
+        GROUP BY a.category_id, c.name
+        ORDER BY interestCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 统计指定日期活跃用户数 -->
+    <select id="countActiveUsersByDate" resultType="int">
+        SELECT COUNT(DISTINCT user_id)
+        FROM user_behavior
+        WHERE DATE(create_time) = #{date}
+    </select>
+
+    <!-- 统计指定日期浏览次数 -->
+    <select id="countViewsByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE DATE(create_time) = #{date}
+          AND behavior_type = 1
+    </select>
+
+    <!-- 统计指定日期收藏次数 -->
+    <select id="countFavoritesByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE DATE(create_time) = #{date}
+          AND behavior_type = 2
+    </select>
+
+    <!-- 统计指定日期评论次数 -->
+    <select id="countCommentsByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE DATE(create_time) = #{date}
+          AND behavior_type = 3
+    </select>
+    <select id="countRecentActiveUsers" resultType="int">
+        SELECT COUNT(DISTINCT user_id)
+        FROM user_behavior
+        WHERE create_time >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+    </select>
+    <!-- 获取指定月份的活跃用户 -->
+    <select id="getActiveUsersInMonth" resultType="int">
+        SELECT DISTINCT user_id
+        FROM user_behavior
+        WHERE DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+    </select>
+
+    <!-- 统计用户月度浏览数 -->
+    <select id="countUserViewsByMonth" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+          AND behavior_type = 1
+    </select>
+
+    <!-- 统计用户月度收藏数 -->
+    <select id="countUserFavoritesByMonth" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+          AND behavior_type = 2
+    </select>
+
+    <!-- 统计用户月度评论数 -->
+    <select id="countUserCommentsByMonth" resultType="int">
+        SELECT COUNT(*)
+        FROM user_behavior
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+          AND behavior_type = 3
+    </select>
+
+    <!-- 统计用户月度活跃天数 -->
+    <select id="countUserActiveDaysInMonth" resultType="int">
+        SELECT COUNT(DISTINCT DATE(create_time))
+        FROM user_behavior
+        WHERE user_id = #{userId}
+          AND DATE_FORMAT(create_time, '%Y-%m') = #{statMonth}
+    </select>
+</mapper>

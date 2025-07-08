@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.UserMapper">
+    <insert id="insertUser">
+    insert into demo.user(username,password,role,create_time,update_time)
+    values (#{username},#{password},#{role},NOW(),NOW())
+    </insert>
+    <!-- 映射内容 -->
+    <select id="findByUsername" resultType="com.example.demo.pojo.User">
+    select * from demo.user where username=#{username}
+    </select>
+    <!-- 统计指定日期新增用户数 -->
+    <select id="countNewUsersByDate" resultType="int">
+        SELECT COUNT(*)
+        FROM user
+        WHERE DATE(create_time) = #{date}
+    </select>
+</mapper>

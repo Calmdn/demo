@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.TagMapper">
+
+    <!-- 插入标签 -->
+    <insert id="insert" parameterType="com.example.demo.pojo.Tag" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tags(name, status) VALUES(#{name}, #{status})
+    </insert>
+
+    <!-- 根据名称查找标签 -->
+    <select id="findByName" resultType="com.example.demo.pojo.Tag">
+        SELECT * FROM tags WHERE name = #{name}
+    </select>
+
+    <!-- 批量插入作品标签关联 -->
+    <insert id="batchInsertArtworkTags">
+        INSERT INTO artwork_tags(artwork_id, tag_id) VALUES
+        <foreach collection="tagIds" item="tagId" separator=",">
+            (#{artworkId}, #{tagId})
+        </foreach>
+    </insert>
+
+    <!-- 删除作品的所有标签 -->
+    <delete id="deleteArtworkTags">
+        DELETE FROM artwork_tags WHERE artwork_id = #{artworkId}
+    </delete>
+
+    <!-- 获取作品的标签 -->
+    <select id="getArtworkTags" resultType="com.example.demo.pojo.Tag">
+        SELECT t.* FROM tags t
+                            INNER JOIN artwork_tags at ON t.id = at.tag_id
+        WHERE at.artwork_id = #{artworkId} AND t.status = 1
+    </select>
+
+    <!-- 获取热门标签 -->
+    <select id="getHotTags" resultType="com.example.demo.pojo.Tag">
+        SELECT * FROM tags
+        WHERE status = 1
+        ORDER BY usage_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 更新标签使用次数 -->
+    <update id="incrementUsageCount">
+        UPDATE tags SET usage_count = usage_count + #{increment} WHERE id = #{tagId}
+    </update>
+
+    <!-- 搜索标签 -->
+    <select id="searchTags" resultType="com.example.demo.pojo.Tag">
+        SELECT * FROM tags
+        WHERE name LIKE CONCAT('%', #{keyword}, '%')
+          AND status = 1
+        ORDER BY usage_count DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
